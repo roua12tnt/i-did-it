@@ -86,7 +86,7 @@ export default function Home() {
   }
 
   if (!user) {
-    return <Auth onSuccess={() => window.location.reload()} />
+    return <Auth onSuccess={() => {}} />
   }
 
   const tabs = [
