@@ -1,26 +1,169 @@
 @import "tailwindcss";
 
+/* Default light mode */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-background: #F0F0F0;
+  --color-primary-text: #333333;
+  --color-accent: #FF6600;
+  --color-secondary-text: #666666;
+  --color-subtle-elements: #CCCCCC;
+  --color-success: #4CAF50;
+  --color-error: #DC2626;
+  --color-dark-accent: #1A1A1A;
+  
+  /* Button Colors - 仕様書に基づく統一カラー */
+  --btn-primary-bg: #FF6600;
+  --btn-primary-hover: rgba(255, 102, 0, 0.7);
+  --btn-secondary-bg: #666666;
+  --btn-secondary-hover: rgba(102, 102, 102, 0.7);
+  --btn-danger-bg: #DC2626;
+  --btn-danger-hover: rgba(220, 38, 38, 0.7);
+  --btn-text-color: #FFFFFF;
+  
+  /* Achievement Colors */
+  --achievement-star-bg: #FFD700;
+  --achievement-star-border: #FFA500;
+  --achievement-star-glow: rgba(255, 215, 0, 0.8);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Light Mode Colors */
+[data-theme="light"] {
+  --color-background: #F0F0F0;
+  --color-primary-text: #333333;
+  --color-accent: #FF6600;
+  --color-secondary-text: #666666;
+  --color-subtle-elements: #CCCCCC;
+  --color-success: #4CAF50;
+  --color-error: #DC2626;
+  --color-dark-accent: #1A1A1A;
+  
+  /* Button Colors */
+  --btn-primary-bg: #FF6600;
+  --btn-primary-hover: rgba(255, 102, 0, 0.7);
+  --btn-secondary-bg: #666666;
+  --btn-secondary-hover: rgba(102, 102, 102, 0.7);
+  --btn-danger-bg: #DC2626;
+  --btn-danger-hover: rgba(220, 38, 38, 0.7);
+  --btn-text-color: #FFFFFF;
+  
+  /* Achievement Colors */
+  --achievement-star-bg: #FFD700;
+  --achievement-star-border: #FFA500;
+  --achievement-star-glow: rgba(255, 215, 0, 0.8);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Dark Mode Colors */
+[data-theme="dark"] {
+  --color-background: #1A1A1A;
+  --color-primary-text: #F0F0F0;
+  --color-accent: #FF6600;
+  --color-secondary-text: #999999;
+  --color-subtle-elements: #333333;
+  --color-success: #4CAF50;
+  --color-error: #DC2626;
+  --color-dark-accent: #0A0A0A;
+  
+  /* Button Colors - ダークモードでも同じ色を使用 */
+  --btn-primary-bg: #FF6600;
+  --btn-primary-hover: rgba(255, 102, 0, 0.7);
+  --btn-secondary-bg: #666666;
+  --btn-secondary-hover: rgba(102, 102, 102, 0.7);
+  --btn-danger-bg: #DC2626;
+  --btn-danger-hover: rgba(220, 38, 38, 0.7);
+  --btn-text-color: #FFFFFF;
+  
+  /* Achievement Colors */
+  --achievement-star-bg: #FFD700;
+  --achievement-star-border: #FFA500;
+  --achievement-star-glow: rgba(255, 215, 0, 0.8);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-background) !important;
+  color: var(--color-primary-text) !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* 統一ボタンスタイル - 仕様書に基づく */
+.btn-primary {
+  background-color: var(--btn-primary-bg);
+  color: var(--btn-text-color);
+  border: none;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--btn-primary-hover);
+}
+
+.btn-secondary {
+  background-color: var(--btn-secondary-bg);
+  color: var(--btn-text-color);
+  border: none;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--btn-secondary-hover);
+}
+
+.btn-danger {
+  background-color: var(--btn-danger-bg);
+  color: var(--btn-text-color);
+  border: none;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: var(--btn-danger-hover);
+}
+
+.btn-icon {
+  color: var(--btn-secondary-bg);
+  transition: color 0.3s ease;
+}
+
+.btn-icon.edit:hover {
+  color: var(--btn-primary-bg);
+}
+
+.btn-icon.delete:hover {
+  color: var(--btn-danger-bg);
+}
+
+.btn-link {
+  color: var(--btn-primary-bg);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.btn-link:hover {
+  color: var(--btn-primary-hover);
+}
+
+/* 達成記録ボタン用スタイル */
+.achievement-btn {
+  transition: all 0.3s ease;
+  border-radius: 50%;
+}
+
+.achievement-btn.achieved {
+  background-color: var(--achievement-star-bg);
+  color: var(--btn-text-color);
+  border: none;
+}
+
+.achievement-btn.unachieved {
+  background-color: transparent;
+  color: var(--achievement-star-bg);
+  border: 2px dashed var(--achievement-star-bg);
+}
+
+.achievement-btn.unachieved:hover {
+  background-color: rgba(255, 215, 0, 0.1);
 }
