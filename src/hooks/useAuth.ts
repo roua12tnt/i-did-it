@@ -9,6 +9,48 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
   const [sessionExpired, setSessionExpired] = useState(false)
 
+  const handleSessionExpired = () => {
+    setUser(null)
+    setSessionExpired(true)
+    setLoading(false)
+  }
+
+  const createProfile = async (user: User) => {
+    try {
+      // 既存のプロフィールを確認
+      const { error: selectError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single()
+
+      // セッションエラーをチェック
+      if (selectError && selectError.code === 'PGRST116') {
+        // プロフィールが存在しない場合のみ作成
+        const { error } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            email: user.email!,
+          })
+        
+        if (error) {
+          console.error('Error creating profile:', error)
+          if (error.message?.includes('JWT') || error.message?.includes('session')) {
+            handleSessionExpired()
+          }
+        }
+      } else if (selectError) {
+        console.error('Error checking profile:', selectError)
+        if (selectError.message?.includes('JWT') || selectError.message?.includes('session')) {
+          handleSessionExpired()
+        }
+      }
+    } catch (error) {
+      console.error('Error creating profile:', error)
+    }
+  }
+
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
@@ -69,49 +111,7 @@ export function useAuth() {
     )
 
     return () => subscription.unsubscribe()
-  }, [])
-
-  const handleSessionExpired = () => {
-    setUser(null)
-    setSessionExpired(true)
-    setLoading(false)
-  }
-
-  const createProfile = async (user: User) => {
-    try {
-      // 既存のプロフィールを確認
-      const { data: existingProfile, error: selectError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single()
-
-      // セッションエラーをチェック
-      if (selectError && selectError.code === 'PGRST116') {
-        // プロフィールが存在しない場合のみ作成
-        const { error } = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            email: user.email!,
-          })
-        
-        if (error) {
-          console.error('Error creating profile:', error)
-          if (error.message?.includes('JWT') || error.message?.includes('session')) {
-            handleSessionExpired()
-          }
-        }
-      } else if (selectError) {
-        console.error('Error checking profile:', selectError)
-        if (selectError.message?.includes('JWT') || selectError.message?.includes('session')) {
-          handleSessionExpired()
-        }
-      }
-    } catch (error) {
-      console.error('Error creating profile:', error)
-    }
-  }
+  }, [createProfile])
 
   const signOut = async () => {
     try {
