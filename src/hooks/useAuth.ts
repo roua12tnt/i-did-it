@@ -9,53 +9,62 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
   const [sessionExpired, setSessionExpired] = useState(false)
 
-  const handleSessionExpired = () => {
-    setUser(null)
-    setSessionExpired(true)
-    setLoading(false)
-  }
+  useEffect(() => {
+    let isMounted = true
 
-  const createProfile = async (user: User) => {
-    try {
-      // 既存のプロフィールを確認
-      const { error: selectError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single()
+    const handleSessionExpired = () => {
+      if (!isMounted) return
+      setUser(null)
+      setSessionExpired(true)
+      setLoading(false)
+    }
 
-      // セッションエラーをチェック
-      if (selectError && selectError.code === 'PGRST116') {
-        // プロフィールが存在しない場合のみ作成
-        const { error } = await supabase
+    const createProfile = async (user: User) => {
+      if (!isMounted) return
+      
+      try {
+        // 既存のプロフィールを確認
+        const { error: selectError } = await supabase
           .from('profiles')
-          .insert({
-            id: user.id,
-            email: user.email!,
-          })
-        
-        if (error) {
-          console.error('Error creating profile:', error)
-          if (error.message?.includes('JWT') || error.message?.includes('session')) {
+          .select('id')
+          .eq('id', user.id)
+          .single()
+
+        // セッションエラーをチェック
+        if (selectError && selectError.code === 'PGRST116') {
+          // プロフィールが存在しない場合のみ作成
+          const { error } = await supabase
+            .from('profiles')
+            .insert({
+              id: user.id,
+              email: user.email!,
+            })
+          
+          if (error) {
+            console.error('Error creating profile:', error)
+            if (error.message?.includes('JWT') || error.message?.includes('session')) {
+              handleSessionExpired()
+            }
+          }
+        } else if (selectError) {
+          console.error('Error checking profile:', selectError)
+          if (selectError.message?.includes('JWT') || selectError.message?.includes('session')) {
             handleSessionExpired()
           }
         }
-      } else if (selectError) {
-        console.error('Error checking profile:', selectError)
-        if (selectError.message?.includes('JWT') || selectError.message?.includes('session')) {
-          handleSessionExpired()
-        }
+      } catch (error) {
+        console.error('Error creating profile:', error)
       }
-    } catch (error) {
-      console.error('Error creating profile:', error)
     }
-  }
 
-  useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
+      if (!isMounted) return
+      
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (!isMounted) return
         
         if (error) {
           console.error('Session error:', error)
@@ -72,9 +81,13 @@ export function useAuth() {
         }
       } catch (error) {
         console.error('Error getting session:', error)
-        handleSessionExpired()
+        if (isMounted) {
+          handleSessionExpired()
+        }
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
@@ -83,6 +96,8 @@ export function useAuth() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!isMounted) return
+        
         try {
           if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
             if (!session) {
@@ -103,15 +118,22 @@ export function useAuth() {
           }
         } catch (error) {
           console.error('Auth state change error:', error)
-          handleSessionExpired()
+          if (isMounted) {
+            handleSessionExpired()
+          }
         } finally {
-          setLoading(false)
+          if (isMounted) {
+            setLoading(false)
+          }
         }
       }
     )
 
-    return () => subscription.unsubscribe()
-  }, [createProfile])
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
+  }, []) // 空の依存配列で一度だけ実行
 
   const signOut = async () => {
     try {
