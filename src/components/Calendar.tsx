@@ -21,10 +21,11 @@ interface Achievement {
 
 interface CalendarProps {
   dos: Do[]
-  onAchievementToggle: (doId: string, date: string, isAchieved: boolean) => void
+  onAchievementToggle: (doId: string, date: string, isAchieved: boolean, showConfirmation?: boolean) => void
+  refreshTrigger?: number
 }
 
-export default function Calendar({ dos, onAchievementToggle }: CalendarProps) {
+export default function Calendar({ dos, onAchievementToggle, refreshTrigger }: CalendarProps) {
   const { user } = useAuth()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [achievements, setAchievements] = useState<Achievement[]>([])
@@ -32,6 +33,8 @@ export default function Calendar({ dos, onAchievementToggle }: CalendarProps) {
   const [loading, setLoading] = useState(false)
 
   const fetchAchievements = useCallback(async () => {
+    if (!user?.id) return
+    
     try {
       const startDate = format(startOfMonth(currentMonth), 'yyyy-MM-dd')
       const endDate = format(endOfMonth(currentMonth), 'yyyy-MM-dd')
@@ -39,11 +42,17 @@ export default function Calendar({ dos, onAchievementToggle }: CalendarProps) {
       const { data, error } = await supabase
         .from('achievements')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .gte('achieved_date', startDate)
         .lte('achieved_date', endDate)
 
-      if (error) throw error
+      if (error) {
+        if (error.message?.includes('JWT') || error.message?.includes('session')) {
+          console.error('Session expired while fetching achievements')
+          return
+        }
+        throw error
+      }
       setAchievements(data || [])
     } catch (error) {
       console.error('Failed to fetch achievements:', error)
@@ -54,7 +63,7 @@ export default function Calendar({ dos, onAchievementToggle }: CalendarProps) {
     if (user) {
       fetchAchievements()
     }
-  }, [user, fetchAchievements])
+  }, [user, fetchAchievements, refreshTrigger])
 
   const toggleAchievement = async (doId: string, date: Date) => {
     const dateString = format(date, 'yyyy-MM-dd')
@@ -62,35 +71,63 @@ export default function Calendar({ dos, onAchievementToggle }: CalendarProps) {
       a => a.do_id === doId && a.achieved_date === dateString
     )
 
-    setLoading(true)
-
-    try {
-      if (existingAchievement) {
+    if (existingAchievement) {
+      // 既に達成済みの場合は削除（確認なし）
+      setLoading(true)
+      try {
         const { error } = await supabase
           .from('achievements')
           .delete()
           .eq('id', existingAchievement.id)
 
-        if (error) throw error
+        if (error) {
+          if (error.message?.includes('JWT') || error.message?.includes('session')) {
+            console.error('Session expired while deleting achievement')
+            return
+          }
+          throw error
+        }
+        await fetchAchievements()
         onAchievementToggle(doId, dateString, false)
-      } else {
-        const { error } = await supabase
-          .from('achievements')
-          .insert({
-            user_id: user?.id,
-            do_id: doId,
-            achieved_date: dateString,
-          })
-
-        if (error) throw error
-        onAchievementToggle(doId, dateString, true)
+      } catch (error) {
+        console.error('Failed to delete achievement:', error)
+      } finally {
+        setLoading(false)
       }
+    } else {
+      // 未達成の場合：30%の確率で確認モーダル、70%の確率で直接達成
+      const shouldShowConfirmation = Math.random() < 0.3
+      
+      if (shouldShowConfirmation) {
+        // 確認モーダルを表示（データ更新はしない）
+        onAchievementToggle(doId, dateString, true, true)
+      } else {
+        // 直接達成処理を実行
+        setLoading(true)
+        try {
+          const { error } = await supabase
+            .from('achievements')
+            .insert({
+              user_id: user?.id,
+              do_id: doId,
+              achieved_date: dateString,
+            })
 
-      await fetchAchievements()
-    } catch (error) {
-      console.error('Failed to toggle achievement:', error)
-    } finally {
-      setLoading(false)
+          if (error) {
+            if (error.message?.includes('JWT') || error.message?.includes('session')) {
+              console.error('Session expired while adding achievement')
+              return
+            }
+            throw error
+          }
+          await fetchAchievements()
+          onAchievementToggle(doId, dateString, true, false)
+        } catch (error) {
+          console.error('Failed to add achievement:', error)
+        } finally {
+          setLoading(false)
+        }
+      }
     }
   }
 

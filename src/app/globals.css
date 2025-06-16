@@ -150,6 +150,7 @@ body {
 .achievement-btn {
   transition: all 0.3s ease;
   border-radius: 50%;
+  cursor: pointer;
 }
 
 .achievement-btn.achieved {

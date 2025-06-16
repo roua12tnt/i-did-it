@@ -22,14 +22,23 @@ export default function DoManager() {
   const [error, setError] = useState('')
 
   const fetchDos = useCallback(async () => {
+    if (!user?.id) return
+    
     try {
       const { data, error } = await supabase
         .from('dos')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: true })
 
-      if (error) throw error
+      if (error) {
+        if (error.message?.includes('JWT') || error.message?.includes('session')) {
+          console.error('Session expired while fetching dos')
+          setError('セッションが切れました。ページを更新してください。')
+          return
+        }
+        throw error
+      }
       setDos(data || [])
     } catch (err) {
       console.error('Failed to fetch dos:', err)
@@ -62,7 +71,13 @@ export default function DoManager() {
           description: newDo.description.trim() || null,
         })
 
-      if (error) throw error
+      if (error) {
+        if (error.message?.includes('JWT') || error.message?.includes('session')) {
+          setError('セッションが切れました。ページを更新してください。')
+          return
+        }
+        throw error
+      }
 
       setNewDo({ title: '', description: '' })
       setIsAdding(false)
@@ -90,7 +105,13 @@ export default function DoManager() {
         })
         .eq('id', id)
 
-      if (error) throw error
+      if (error) {
+        if (error.message?.includes('JWT') || error.message?.includes('session')) {
+          setError('セッションが切れました。ページを更新してください。')
+          return
+        }
+        throw error
+      }
 
       setEditingId(null)
       await fetchDos()
@@ -116,7 +137,13 @@ export default function DoManager() {
         .delete()
         .eq('id', id)
 
-      if (error) throw error
+      if (error) {
+        if (error.message?.includes('JWT') || error.message?.includes('session')) {
+          setError('セッションが切れました。ページを更新してください。')
+          return
+        }
+        throw error
+      }
       await fetchDos()
     } catch (err) {
       console.error('Failed to delete do:', err)

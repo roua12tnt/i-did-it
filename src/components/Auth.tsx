@@ -46,7 +46,7 @@ export default function Auth({ onSuccess }: AuthProps) {
       <div className="max-w-md w-full space-y-8 p-8 bg-background border border-subtle-elements rounded-lg shadow-lg">
         <div>
           <h2 className="text-3xl font-bold text-center text-primary-text mb-2">
-            I did it!
+            I DID it!
           </h2>
           <p className="text-center text-secondary-text">
             {isLogin ? 'ログインしてください' : 'アカウントを作成してください'}
