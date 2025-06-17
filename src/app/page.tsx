@@ -16,8 +16,7 @@ import {
   Do, 
   ActiveTab, 
   CelebrationModalState, 
-  ConfirmationModalState,
-  CONFIRMATION_MODAL_PROBABILITY 
+  ConfirmationModalState
 } from '@/types'
 import { handleSupabaseError } from '@/utils/errorHandling'
 
@@ -143,7 +142,7 @@ export default function Home() {
     }
   }
 
-  const handleConfirmAchievement = async (memo?: string) => {
+  const handleConfirmAchievement = async () => {
     if (!confirmationModal.date) return
 
     try {
@@ -231,7 +230,7 @@ export default function Home() {
     })
   }
 
-  const closeCelebrationModal = async (memo?: string) => {
+  const closeCelebrationModal = () => {
     setCelebrationModal({
       isOpen: false,
       doTitle: '',

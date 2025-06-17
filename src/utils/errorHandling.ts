@@ -1,13 +1,25 @@
 // エラーハンドリングユーティリティ
 
-export const isSessionError = (error: any): boolean => {
-  return error?.message?.includes('JWT') || 
-         error?.message?.includes('session') ||
-         error?.code === 'PGRST301' // Supabase session expiry
+// Supabaseエラーオブジェクトの型定義
+interface SupabaseError {
+  message?: string
+  code?: string
+  details?: string
+  hint?: string
+}
+
+// 一般的なエラーの型（Error または SupabaseError）
+type AppError = Error | SupabaseError | unknown
+
+export const isSessionError = (error: AppError): boolean => {
+  const err = error as SupabaseError
+  return err?.message?.includes('JWT') || 
+         err?.message?.includes('session') ||
+         err?.code === 'PGRST301' // Supabase session expiry
 }
 
 export const handleSupabaseError = (
-  error: any, 
+  error: AppError, 
   operation: string,
   onSessionExpired?: () => void
 ): { isSessionError: boolean; userMessage: string } => {
@@ -22,15 +34,17 @@ export const handleSupabaseError = (
     }
   }
 
+  const err = error as SupabaseError
+
   // データベースエラーのハンドリング
-  if (error?.code === '23505') {
+  if (err?.code === '23505') {
     return {
       isSessionError: false,
       userMessage: '重複したデータです。'
     }
   }
 
-  if (error?.code === '23503') {
+  if (err?.code === '23503') {
     return {
       isSessionError: false,
       userMessage: '関連するデータが見つかりません。'
@@ -48,7 +62,7 @@ export const createErrorHandler = (
   operation: string,
   onSessionExpired?: () => void
 ) => {
-  return (error: any) => handleSupabaseError(error, operation, onSessionExpired)
+  return (error: AppError) => handleSupabaseError(error, operation, onSessionExpired)
 }
 
 // 汎用的なSupabase操作ラッパー

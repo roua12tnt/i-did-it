@@ -19,7 +19,6 @@ export default function Calendar({ dos, onAchievementToggle, refreshTrigger }: C
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [achievements, setAchievements] = useState<Achievement[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
-  const [loading, setLoading] = useState(false)
 
   const fetchAchievements = useCallback(async () => {
     if (!user?.id) return
@@ -53,72 +52,6 @@ export default function Calendar({ dos, onAchievementToggle, refreshTrigger }: C
       fetchAchievements()
     }
   }, [user, fetchAchievements, refreshTrigger])
-
-  const toggleAchievement = async (doId: string, date: Date) => {
-    const dateString = format(date, 'yyyy-MM-dd')
-    const existingAchievement = achievements.find(
-      a => a.do_id === doId && a.achieved_date === dateString
-    )
-
-    if (existingAchievement) {
-      // 既に達成済みの場合は削除（確認なし）
-      setLoading(true)
-      try {
-        const { error } = await supabase
-          .from('achievements')
-          .delete()
-          .eq('id', existingAchievement.id)
-
-        if (error) {
-          if (error.message?.includes('JWT') || error.message?.includes('session')) {
-            console.error('Session expired while deleting achievement')
-            return
-          }
-          throw error
-        }
-        await fetchAchievements()
-        onAchievementToggle(doId, dateString, false)
-      } catch (error) {
-        console.error('Failed to delete achievement:', error)
-      } finally {
-        setLoading(false)
-      }
-    } else {
-      // 未達成の場合：30%の確率で確認モーダル、70%の確率で直接達成
-      const shouldShowConfirmation = Math.random() < 0.3
-      
-      if (shouldShowConfirmation) {
-        // 確認モーダルを表示（データ更新はしない）
-        onAchievementToggle(doId, dateString, true, true)
-      } else {
-        // 直接達成処理を実行
-        setLoading(true)
-        try {
-          const { error } = await supabase
-            .from('achievements')
-            .insert({
-              user_id: user?.id,
-              do_id: doId,
-              achieved_date: dateString,
-            })
-
-          if (error) {
-            if (error.message?.includes('JWT') || error.message?.includes('session')) {
-              console.error('Session expired while adding achievement')
-              return
-            }
-            throw error
-          }
-          await fetchAchievements()
-          onAchievementToggle(doId, dateString, true, false)
-        } catch (error) {
-          console.error('Failed to add achievement:', error)
-        } finally {
-          setLoading(false)
-        }
-      }
-    }
-  }
 
   const getAchievementsForDate = (date: Date) => {
     const dateString = format(date, 'yyyy-MM-dd')
@@ -293,7 +226,6 @@ export default function Calendar({ dos, onAchievementToggle, refreshTrigger }: C
                   </div>
                   <button
                     onClick={() => onAchievementToggle(doItem.id, format(selectedDate, 'yyyy-MM-dd'), isAchieved(doItem.id, selectedDate), Math.random() < CONFIRMATION_MODAL_PROBABILITY)}
-                    disabled={loading}
                     className={`achievement-btn flex items-center justify-center w-8 h-8 ${
                       isAchieved(doItem.id, selectedDate) ? 'achieved' : 'unachieved'
                     }`}
