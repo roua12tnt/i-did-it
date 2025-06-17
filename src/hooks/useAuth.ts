@@ -79,14 +79,15 @@ export function useAuth() {
         } else {
           setUser(null)
         }
+        
+        // セッション確認完了後は必ずローディングを終了
+        if (isMounted) {
+          setLoading(false)
+        }
       } catch (error) {
         console.error('Error getting session:', error)
         if (isMounted) {
           handleSessionExpired()
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false)
         }
       }
     }
@@ -116,14 +117,15 @@ export function useAuth() {
               handleSessionExpired()
             }
           }
+          
+          // 認証状態変更の処理完了後はローディングを終了
+          if (isMounted) {
+            setLoading(false)
+          }
         } catch (error) {
           console.error('Auth state change error:', error)
           if (isMounted) {
             handleSessionExpired()
-          }
-        } finally {
-          if (isMounted) {
-            setLoading(false)
           }
         }
       }
