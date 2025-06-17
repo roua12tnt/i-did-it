@@ -24,6 +24,7 @@ CREATE TABLE public.achievements (
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   do_id UUID REFERENCES public.dos(id) ON DELETE CASCADE NOT NULL,
   achieved_date DATE NOT NULL,
+  memo TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   UNIQUE(user_id, do_id, achieved_date)
 );

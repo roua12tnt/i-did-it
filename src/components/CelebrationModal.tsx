@@ -3,21 +3,25 @@
 import React, { useEffect, useState } from 'react'
 import { X, Sparkles, Star, Trophy } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { MEMO_MAX_LENGTH } from '@/types'
 
 interface CelebrationModalProps {
   isOpen: boolean
   onClose: () => void
+  onSaveMemo: (memo: string) => void
   doTitle: string
   date: string
 }
 
-export default function CelebrationModal({ isOpen, onClose, doTitle, date }: CelebrationModalProps) {
+export default function CelebrationModal({ isOpen, onClose, onSaveMemo, doTitle, date }: CelebrationModalProps) {
   const [praiseMessage, setPraiseMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [memo, setMemo] = useState('')
 
   useEffect(() => {
     if (isOpen) {
       fetchRandomPraiseMessage()
+      setMemo('')
     }
   }, [isOpen])
 
@@ -140,9 +144,35 @@ export default function CelebrationModal({ isOpen, onClose, doTitle, date }: Cel
             )}
           </div>
 
+          {/* Memo Input */}
+          <div className="mb-6" style={{ animation: 'fadeInUp 0.6s ease-out 0.7s both' }}>
+            <label htmlFor="achievement-memo" className="block text-sm font-medium text-primary-text mb-2 text-left">
+              今日の達成メモ
+            </label>
+            <textarea
+              id="achievement-memo"
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              className="w-full px-3 py-2 border border-subtle-elements rounded-md bg-background text-primary-text focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none"
+              placeholder="なんか一言残す（任意）"
+              rows={3}
+              maxLength={MEMO_MAX_LENGTH}
+            />
+            <div className="text-xs text-secondary-text mt-1 text-right">
+              {memo.length}/{MEMO_MAX_LENGTH}
+            </div>
+          </div>
+
           {/* Close Button */}
           <button
-            onClick={onClose}
+            onClick={() => {
+              console.log('Close button clicked, memo:', memo)
+              if (memo.trim()) {
+                console.log('Calling onSaveMemo with:', memo.trim())
+                onSaveMemo(memo.trim())
+              }
+              onClose()
+            }}
             className="w-full px-6 py-3 text-white rounded-md transition-all font-bold text-lg relative overflow-hidden mb-6"
             style={{ 
               backgroundColor: '#FF6600',
@@ -157,7 +187,7 @@ export default function CelebrationModal({ isOpen, onClose, doTitle, date }: Cel
               e.currentTarget.style.transform = 'scale(1)'
             }}
           >
-            どうも！
+            どうも！（保存して閉じる）
           </button>
 
           {/* Share Button */}

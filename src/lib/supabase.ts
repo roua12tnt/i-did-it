@@ -21,18 +21,24 @@ export type Database = {
         Row: {
           id: string
           email: string
+          birthday: string | null
+          selected_message_set_id: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id: string
           email: string
+          birthday?: string | null
+          selected_message_set_id?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           email?: string
+          birthday?: string | null
+          selected_message_set_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -69,6 +75,7 @@ export type Database = {
           user_id: string
           do_id: string
           achieved_date: string
+          memo: string | null
           created_at: string
         }
         Insert: {
@@ -76,6 +83,7 @@ export type Database = {
           user_id: string
           do_id: string
           achieved_date: string
+          memo?: string | null
           created_at?: string
         }
         Update: {
@@ -83,22 +91,46 @@ export type Database = {
           user_id?: string
           do_id?: string
           achieved_date?: string
+          memo?: string | null
+          created_at?: string
+        }
+      }
+      message_sets: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
           created_at?: string
         }
       }
       praise_messages: {
         Row: {
           id: string
+          set_id: string
           message: string
           created_at: string
         }
         Insert: {
           id?: string
+          set_id: string
           message: string
           created_at?: string
         }
         Update: {
           id?: string
+          set_id?: string
           message?: string
           created_at?: string
         }

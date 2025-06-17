@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Calendar as CalendarIcon, List, Settings as SettingsIcon, Menu, X } from 'lucide-react'
+import { Calendar as CalendarIcon, List, Settings as SettingsIcon, Menu, X, ExternalLink } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import Auth from '@/components/Auth'
 import Calendar from '@/components/Calendar'
@@ -12,34 +12,27 @@ import ConfirmationModal from '@/components/ConfirmationModal'
 import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
-
-interface Do {
-  id: string
-  title: string
-  description: string | null
-}
-
-type ActiveTab = 'calendar' | 'dos' | 'settings'
+import { 
+  Do, 
+  ActiveTab, 
+  CelebrationModalState, 
+  ConfirmationModalState,
+  CONFIRMATION_MODAL_PROBABILITY 
+} from '@/types'
+import { handleSupabaseError } from '@/utils/errorHandling'
 
 export default function Home() {
   const { user, loading, sessionExpired, clearSessionExpired } = useAuth()
   const [activeTab, setActiveTab] = useState<ActiveTab>('calendar')
   const [dos, setDos] = useState<Do[]>([])
-  const [celebrationModal, setCelebrationModal] = useState<{
-    isOpen: boolean
-    doTitle: string
-    date: string
-  }>({
+  const [celebrationModal, setCelebrationModal] = useState<CelebrationModalState>({
     isOpen: false,
     doTitle: '',
     date: '',
+    doId: '',
+    achievedDate: null,
   })
-  const [confirmationModal, setConfirmationModal] = useState<{
-    isOpen: boolean
-    doId: string
-    doTitle: string
-    date: Date | null
-  }>({
+  const [confirmationModal, setConfirmationModal] = useState<ConfirmationModalState>({
     isOpen: false,
     doId: '',
     doTitle: '',
@@ -47,6 +40,7 @@ export default function Home() {
   })
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [calendarRefresh, setCalendarRefresh] = useState(0)
+  const [error, setError] = useState('')
 
   const fetchDos = useCallback(async () => {
     if (!user?.id) return
@@ -59,15 +53,16 @@ export default function Home() {
         .order('created_at', { ascending: true })
 
       if (error) {
-        if (error.message?.includes('JWT') || error.message?.includes('session')) {
-          console.error('Session expired while fetching dos')
-          return
-        }
-        throw error
+        const { isSessionError, userMessage } = handleSupabaseError(error, 'Doの取得')
+        if (isSessionError) return
+        setError(userMessage)
+        return
       }
       setDos(data || [])
+      setError('')
     } catch (error) {
-      console.error('Failed to fetch dos:', error)
+      const { userMessage } = handleSupabaseError(error, 'Doの取得')
+      setError(userMessage)
     }
   }, [user?.id])
 
@@ -77,8 +72,9 @@ export default function Home() {
     }
   }, [user, fetchDos])
 
-  const handleAchievementToggle = (doId: string, date: string, isAchieved: boolean, showConfirmation = true) => {
-    if (isAchieved) {
+  const handleAchievementToggle = async (doId: string, date: string, isAchieved: boolean, showConfirmation = true) => {
+    if (!isAchieved) {
+      // 未達成 -> 達成済みにする
       const doItem = dos.find(d => d.id === doId)
       if (doItem) {
         if (showConfirmation) {
@@ -89,20 +85,65 @@ export default function Home() {
             date: new Date(date),
           })
         } else {
-          // 直接お祝いモーダルを表示
-          setCelebrationModal({
-            isOpen: true,
-            doTitle: doItem.title,
-            date: format(new Date(date), 'yyyy年MM月dd日', { locale: ja }),
-          })
-          // カレンダーの達成記録を更新
-          setCalendarRefresh(prev => prev + 1)
+          // 直接達成記録を保存してからお祝いモーダルを表示
+          try {
+            const { error } = await supabase
+              .from('achievements')
+              .insert({
+                user_id: user?.id,
+                do_id: doId,
+                achieved_date: date,
+                memo: '',
+              })
+
+            if (error && error.code !== '23505') { // 重複エラー以外はログ出力
+              console.error('Failed to add achievement:', error)
+              return
+            }
+
+            // カレンダーの達成記録を更新してからモーダル表示
+            setCalendarRefresh(prev => prev + 1)
+            
+            // 少し待ってからモーダル表示（データ更新を確実にするため）
+            setTimeout(() => {
+              setCelebrationModal({
+                isOpen: true,
+                doTitle: doItem.title,
+                date: format(new Date(date), 'yyyy年MM月dd日', { locale: ja }),
+                doId: doId,
+                achievedDate: new Date(date),
+              })
+            }, 100)
+          } catch (error) {
+            console.error('Error adding achievement:', error)
+          }
+        }
+      }
+    } else {
+      // 達成済み -> 削除する
+      if (confirm('この達成記録を削除しますか？')) {
+        try {
+          const { error } = await supabase
+            .from('achievements')
+            .delete()
+            .eq('user_id', user?.id)
+            .eq('do_id', doId)
+            .eq('achieved_date', date)
+
+          if (error) {
+            console.error('Failed to delete achievement:', error)
+          } else {
+            // カレンダーの達成記録を更新
+            setCalendarRefresh(prev => prev + 1)
+          }
+        } catch (error) {
+          console.error('Error deleting achievement:', error)
         }
       }
     }
   }
 
-  const handleConfirmAchievement = async () => {
+  const handleConfirmAchievement = async (memo?: string) => {
     if (!confirmationModal.date) return
 
     try {
@@ -131,13 +172,14 @@ export default function Home() {
       if (existingAchievement) {
         console.log('Achievement already exists, showing celebration modal')
       } else {
-        // 新しい達成記録を追加
+        // 新しい達成記録を追加（メモフィールドを空文字で初期化）
         const { error } = await supabase
           .from('achievements')
           .insert({
             user_id: user?.id,
             do_id: confirmationModal.doId,
             achieved_date: dateString,
+            memo: '',
           })
 
         if (error) {
@@ -162,6 +204,8 @@ export default function Home() {
           isOpen: true,
           doTitle: doItem.title,
           date: format(confirmationModal.date, 'yyyy年MM月dd日', { locale: ja }),
+          doId: confirmationModal.doId,
+          achievedDate: confirmationModal.date,
         })
         // カレンダーの達成記録を更新
         setCalendarRefresh(prev => prev + 1)
@@ -187,12 +231,48 @@ export default function Home() {
     })
   }
 
-  const closeCelebrationModal = () => {
+  const closeCelebrationModal = async (memo?: string) => {
     setCelebrationModal({
       isOpen: false,
       doTitle: '',
       date: '',
+      doId: '',
+      achievedDate: null,
     })
+  }
+
+  const saveMemoToAchievement = async (doId: string, achievedDate: Date, memo: string) => {
+    console.log('saveMemoToAchievement called with:', { doId, achievedDate, memo, userId: user?.id })
+    
+    try {
+      const dateString = format(achievedDate, 'yyyy-MM-dd')
+      console.log('Formatted date:', dateString)
+      
+      // 直接UPSERTを使用してメモを保存
+      const { data, error } = await supabase
+        .from('achievements')
+        .upsert({
+          user_id: user?.id,
+          do_id: doId,
+          achieved_date: dateString,
+          memo: memo,
+        }, {
+          onConflict: 'user_id,do_id,achieved_date'
+        })
+        .select()
+
+      console.log('Upsert result:', { data, error })
+
+      if (error) {
+        console.error('Failed to save memo:', error)
+      } else {
+        console.log('Memo saved successfully:', data)
+        // カレンダーの達成記録を更新
+        setCalendarRefresh(prev => prev + 1)
+      }
+    } catch (error) {
+      console.error('Error saving memo:', error)
+    }
   }
 
   if (loading) {
@@ -215,6 +295,21 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Error Display */}
+      {error && (
+        <div className="bg-error/10 border border-error/20 text-error p-3 m-4 rounded-md">
+          <div className="flex justify-between items-center">
+            <span>{error}</span>
+            <button 
+              onClick={() => setError('')}
+              className="text-error hover:text-error/80"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Mobile Header */}
       <div className="lg:hidden bg-background border-b border-subtle-elements p-4">
         <div className="flex items-center justify-between">
@@ -282,6 +377,25 @@ export default function Home() {
                   )
                 })}
               </div>
+              
+              {/* Contact Form Link */}
+              <div className="pt-4 border-t border-subtle-elements mt-4">
+                <a
+                  href="https://docs.google.com/forms/d/e/1FAIpQLSe_YKqI3FT0p_g4eUaV-UzzCvGVbQ6clJbKYulR2LeQmlhLcg/viewform?usp=dialog"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-left cursor-pointer text-primary-text hover:text-accent hover:scale-105"
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 102, 0, 0.1)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = ''
+                  }}
+                >
+                  <ExternalLink size={20} />
+                  連絡フォーム
+                </a>
+              </div>
             </nav>
           </div>
         </div>
@@ -323,6 +437,11 @@ export default function Home() {
       <CelebrationModal
         isOpen={celebrationModal.isOpen}
         onClose={closeCelebrationModal}
+        onSaveMemo={(memo) => {
+          if (celebrationModal.doId && celebrationModal.achievedDate) {
+            saveMemoToAchievement(celebrationModal.doId, celebrationModal.achievedDate, memo)
+          }
+        }}
         doTitle={celebrationModal.doTitle}
         date={celebrationModal.date}
       />

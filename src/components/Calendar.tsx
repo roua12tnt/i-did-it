@@ -6,18 +6,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSam
 import { ja } from 'date-fns/locale'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
-
-interface Do {
-  id: string
-  title: string
-  description: string | null
-}
-
-interface Achievement {
-  id: string
-  do_id: string
-  achieved_date: string
-}
+import { Do, Achievement, CONFIRMATION_MODAL_PROBABILITY } from '@/types'
 
 interface CalendarProps {
   dos: Do[]
@@ -139,6 +128,12 @@ export default function Calendar({ dos, onAchievementToggle, refreshTrigger }: C
   const isAchieved = (doId: string, date: Date) => {
     const dateString = format(date, 'yyyy-MM-dd')
     return achievements.some(a => a.do_id === doId && a.achieved_date === dateString)
+  }
+
+  const getAchievementMemo = (doId: string, date: Date): string => {
+    const dateString = format(date, 'yyyy-MM-dd')
+    const achievement = achievements.find(a => a.do_id === doId && a.achieved_date === dateString)
+    return achievement?.memo || ''
   }
 
   const monthStart = startOfMonth(currentMonth)
@@ -292,12 +287,12 @@ export default function Calendar({ dos, onAchievementToggle, refreshTrigger }: C
                 <div key={doItem.id} className="flex items-center justify-between p-3 bg-background rounded-md border border-subtle-elements">
                   <div className="flex-1">
                     <div className="font-medium text-primary-text">{doItem.title}</div>
-                    {doItem.description && (
-                      <div className="text-sm text-secondary-text mt-1">{doItem.description}</div>
+                    {selectedDate && getAchievementMemo(doItem.id, selectedDate) && (
+                      <div className="text-sm text-secondary-text mt-1">{getAchievementMemo(doItem.id, selectedDate)}</div>
                     )}
                   </div>
                   <button
-                    onClick={() => toggleAchievement(doItem.id, selectedDate)}
+                    onClick={() => onAchievementToggle(doItem.id, format(selectedDate, 'yyyy-MM-dd'), isAchieved(doItem.id, selectedDate), Math.random() < CONFIRMATION_MODAL_PROBABILITY)}
                     disabled={loading}
                     className={`achievement-btn flex items-center justify-center w-8 h-8 ${
                       isAchieved(doItem.id, selectedDate) ? 'achieved' : 'unachieved'

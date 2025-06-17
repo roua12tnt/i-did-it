@@ -4,12 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Plus, Edit2, Trash2, Save, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
-
-interface Do {
-  id: string
-  title: string
-  description: string | null
-}
+import { Do, MAX_DOS_PER_USER } from '@/types'
 
 export default function DoManager() {
   const { user } = useAuth()
@@ -54,8 +49,8 @@ export default function DoManager() {
 
   const addDo = async () => {
     if (!newDo.title.trim()) return
-    if (dos.length >= 3) {
-      setError('Doは3つまでしか登録できません')
+    if (dos.length >= MAX_DOS_PER_USER) {
+      setError(`Doは${MAX_DOS_PER_USER}つまでしか登録できません`)
       return
     }
 
@@ -174,8 +169,8 @@ export default function DoManager() {
   return (
     <div className="bg-background p-6 rounded-lg border border-subtle-elements">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-primary-text">マイDo ({dos.length}/3)</h2>
-        {!isAdding && dos.length < 3 && (
+        <h2 className="text-xl font-bold text-primary-text">マイDo ({dos.length}/{MAX_DOS_PER_USER})</h2>
+        {!isAdding && dos.length < MAX_DOS_PER_USER && (
           <button
             onClick={() => setIsAdding(true)}
             className="btn-primary flex items-center gap-2 px-4 py-2 rounded-md"
