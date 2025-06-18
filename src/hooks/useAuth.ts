@@ -32,12 +32,20 @@ export function useAuth() {
 
         // セッションエラーをチェック
         if (selectError && selectError.code === 'PGRST116') {
+          // デフォルトメッセージセットを取得
+          const { data: defaultMessageSet } = await supabase
+            .from('message_sets')
+            .select('id')
+            .eq('name', 'デフォルト')
+            .single()
+
           // プロフィールが存在しない場合のみ作成
           const { error } = await supabase
             .from('profiles')
             .insert({
               id: user.id,
               email: user.email!,
+              selected_message_set_id: defaultMessageSet?.id || null,
             })
           
           if (error) {
@@ -139,14 +147,20 @@ export function useAuth() {
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut()
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('Supabase signOut error:', error)
+      }
+      // 常にローカル状態をクリア
       setUser(null)
       setSessionExpired(false)
+      setLoading(false)
     } catch (error) {
       console.error('Error signing out:', error)
       // 強制的にローカル状態をクリア
       setUser(null)
-      setSessionExpired(true)
+      setSessionExpired(false)
+      setLoading(false)
     }
   }
 
