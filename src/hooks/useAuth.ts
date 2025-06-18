@@ -11,6 +11,7 @@ export function useAuth() {
 
   useEffect(() => {
     let isMounted = true
+    let loadingTimeout: NodeJS.Timeout | null = null
 
     const handleSessionExpired = () => {
       if (!isMounted) return
@@ -18,6 +19,18 @@ export function useAuth() {
       setSessionExpired(true)
       setLoading(false)
     }
+
+    // 10秒後に強制的にローディングを終了
+    const forceEndLoading = () => {
+      loadingTimeout = setTimeout(() => {
+        if (isMounted) {
+          console.warn('Forcing loading to end after timeout')
+          setLoading(false)
+        }
+      }, 10000)
+    }
+
+    forceEndLoading()
 
     const createProfile = async (user: User) => {
       if (!isMounted) return
@@ -52,13 +65,17 @@ export function useAuth() {
             console.error('Error creating profile:', error)
             if (error.message?.includes('JWT') || error.message?.includes('session')) {
               handleSessionExpired()
+              throw new Error('Session expired during profile creation')
             }
+            // 他のエラーの場合は続行
           }
         } else if (selectError) {
           console.error('Error checking profile:', selectError)
           if (selectError.message?.includes('JWT') || selectError.message?.includes('session')) {
             handleSessionExpired()
+            throw new Error('Session expired during profile check')
           }
+          // 他のエラーの場合は続行
         }
       } catch (error) {
         console.error('Error creating profile:', error)
@@ -83,7 +100,12 @@ export function useAuth() {
         if (session?.user) {
           setUser(session.user)
           setSessionExpired(false)
-          await createProfile(session.user)
+          try {
+            await createProfile(session.user)
+          } catch (profileError) {
+            console.error('Profile creation failed:', profileError)
+            // プロフィール作成でエラーが発生してもセッションは有効と判断
+          }
         } else {
           setUser(null)
         }
@@ -91,6 +113,10 @@ export function useAuth() {
         // セッション確認完了後は必ずローディングを終了
         if (isMounted) {
           setLoading(false)
+          if (loadingTimeout) {
+            clearTimeout(loadingTimeout)
+            loadingTimeout = null
+          }
         }
       } catch (error) {
         console.error('Error getting session:', error)
@@ -101,6 +127,10 @@ export function useAuth() {
         // 必ずローディング状態を終了
         if (isMounted) {
           setLoading(false)
+          if (loadingTimeout) {
+            clearTimeout(loadingTimeout)
+            loadingTimeout = null
+          }
         }
       }
     }
@@ -123,7 +153,12 @@ export function useAuth() {
           if (session?.user) {
             setUser(session.user)
             setSessionExpired(false)
-            await createProfile(session.user)
+            try {
+              await createProfile(session.user)
+            } catch (profileError) {
+              console.error('Profile creation failed in auth state change:', profileError)
+              // プロフィール作成でエラーが発生してもセッションは有効と判断
+            }
           } else {
             setUser(null)
             if (event !== 'INITIAL_SESSION') {
@@ -134,6 +169,10 @@ export function useAuth() {
           // 認証状態変更の処理完了後はローディングを終了
           if (isMounted) {
             setLoading(false)
+            if (loadingTimeout) {
+              clearTimeout(loadingTimeout)
+              loadingTimeout = null
+            }
           }
         } catch (error) {
           console.error('Auth state change error:', error)
@@ -144,6 +183,10 @@ export function useAuth() {
           // 必ずローディング状態を終了
           if (isMounted) {
             setLoading(false)
+            if (loadingTimeout) {
+              clearTimeout(loadingTimeout)
+              loadingTimeout = null
+            }
           }
         }
       }
@@ -152,6 +195,9 @@ export function useAuth() {
     return () => {
       isMounted = false
       subscription.unsubscribe()
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout)
+      }
     }
   }, []) // 空の依存配列で一度だけ実行
 
