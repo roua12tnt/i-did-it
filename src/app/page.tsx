@@ -42,7 +42,10 @@ export default function Home() {
   const [error, setError] = useState('')
 
   const fetchDos = useCallback(async () => {
-    if (!user?.id) return
+    if (!user?.id) {
+      setDos([])
+      return
+    }
     
     try {
       const { data, error } = await supabase
@@ -55,6 +58,7 @@ export default function Home() {
         const { isSessionError, userMessage } = handleSupabaseError(error, 'Doの取得')
         if (isSessionError) return
         setError(userMessage)
+        setDos([]) // エラー時は空配列をセット
         return
       }
       setDos(data || [])
@@ -62,6 +66,7 @@ export default function Home() {
     } catch (error) {
       const { userMessage } = handleSupabaseError(error, 'Doの取得')
       setError(userMessage)
+      setDos([]) // エラー時は空配列をセット
     }
   }, [user?.id])
 

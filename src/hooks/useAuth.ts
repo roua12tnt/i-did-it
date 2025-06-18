@@ -97,6 +97,11 @@ export function useAuth() {
         if (isMounted) {
           handleSessionExpired()
         }
+      } finally {
+        // 必ずローディング状態を終了
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
@@ -134,6 +139,11 @@ export function useAuth() {
           console.error('Auth state change error:', error)
           if (isMounted) {
             handleSessionExpired()
+          }
+        } finally {
+          // 必ずローディング状態を終了
+          if (isMounted) {
+            setLoading(false)
           }
         }
       }
