@@ -26,8 +26,14 @@ export const handleSupabaseError = (
   console.error(`Failed to ${operation}:`, error)
   
   if (isSessionError(error)) {
-    const message = 'セッションが切れました。ページを更新してください。'
+    const message = 'セッションが切れました。ログイン画面に戻ります。'
     onSessionExpired?.()
+    
+    // ログイン画面にリダイレクト
+    setTimeout(() => {
+      window.location.reload()
+    }, 1000)
+    
     return {
       isSessionError: true,
       userMessage: message

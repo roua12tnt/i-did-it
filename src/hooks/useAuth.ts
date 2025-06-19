@@ -20,14 +20,16 @@ export function useAuth() {
       setLoading(false)
     }
 
-    // 10秒後に強制的にローディングを終了
+    // 20秒後に強制的にローディングを終了（エラー時はリダイレクト）
     const forceEndLoading = () => {
       loadingTimeout = setTimeout(() => {
         if (isMounted) {
-          console.warn('Forcing loading to end after timeout')
+          console.warn('Authentication timeout - redirecting to login')
+          setUser(null)
+          setSessionExpired(true)
           setLoading(false)
         }
-      }, 10000)
+      }, 20000)
     }
 
     forceEndLoading()
@@ -211,12 +213,22 @@ export function useAuth() {
       setUser(null)
       setSessionExpired(false)
       setLoading(false)
+      
+      // ログアウト後に必ずログイン画面にリダイレクト
+      setTimeout(() => {
+        window.location.reload()
+      }, 100)
     } catch (error) {
       console.error('Error signing out:', error)
       // 強制的にローカル状態をクリア
       setUser(null)
       setSessionExpired(false)
       setLoading(false)
+      
+      // エラーが発生してもログイン画面にリダイレクト
+      setTimeout(() => {
+        window.location.reload()
+      }, 100)
     }
   }
 

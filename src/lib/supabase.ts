@@ -12,7 +12,27 @@ if (!supabaseUrl.startsWith('https://')) {
   throw new Error('無効なSupabase URL: ' + supabaseUrl)
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  },
+  global: {
+    headers: {
+      'x-my-custom-header': 'I did it!',
+    },
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
+    timeout: 30000,
+  },
+  db: {
+    schema: 'public',
+  },
+})
 
 export type Database = {
   public: {
