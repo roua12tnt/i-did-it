@@ -209,6 +209,7 @@ export function useAuth() {
       if (error) {
         console.error('Supabase signOut error:', error)
       }
+      
       // 常にローカル状態をクリア
       setUser(null)
       setSessionExpired(false)
